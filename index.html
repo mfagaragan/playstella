@@ -73,6 +73,8 @@
       const [bestTime, setBestTime] = useState(null);
       const [streak, setStreak] = useState(0);
       const [nextPlayTime, setNextPlayTime] = useState(null);
+      const [lastGameTime, setLastGameTime] = useState(null);
+      const [lastGameActions, setLastGameActions] = useState(0);
 
       // Generate daily seed based on date
       useEffect(() => {
@@ -89,6 +91,16 @@
         const savedBestTime = localStorage.getItem('stellaBestTime');
         if (savedBestTime) {
           setBestTime(parseFloat(savedBestTime));
+        }
+        
+        // Load last game results for sharing
+        const savedLastGameTime = localStorage.getItem('stellaLastGameTime');
+        const savedLastGameActions = localStorage.getItem('stellaLastGameActions');
+        if (savedLastGameTime) {
+          setLastGameTime(parseFloat(savedLastGameTime));
+        }
+        if (savedLastGameActions) {
+          setLastGameActions(parseInt(savedLastGameActions));
         }
         
         // Load and calculate streak
@@ -201,8 +213,14 @@
         localStorage.setItem('stellaLastPlayDate', today);
         setHasPlayedToday(true);
         
-        // Update best time if this is better
+        // Save last game results for sharing
         const currentTime = parseFloat(timer.toFixed(1));
+        localStorage.setItem('stellaLastGameTime', currentTime.toString());
+        localStorage.setItem('stellaLastGameActions', actionHistory.length.toString());
+        setLastGameTime(currentTime);
+        setLastGameActions(actionHistory.length);
+        
+        // Update best time if this is better
         const savedBestTime = localStorage.getItem('stellaBestTime');
         if (!savedBestTime || currentTime > parseFloat(savedBestTime)) {
           localStorage.setItem('stellaBestTime', currentTime.toString());
@@ -295,12 +313,15 @@
 
       const shareResult = async () => {
         const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        const timeScore = timer.toFixed(1);
+        
+        // Use current game data if on game over screen, otherwise use last game data
+        const timeScore = gameState === 'gameOver' ? timer.toFixed(1) : (lastGameTime ? lastGameTime.toFixed(1) : '0.0');
+        const actionsCount = gameState === 'gameOver' ? actionHistory.length : lastGameActions;
         
         const shareText = `Stella the Cat 🐱
 ${today}
 
-⏱️ ${timeScore}s | ${actionHistory.length} actions
+⏱️ ${timeScore}s | ${actionsCount} actions
 
 Can you beat my score?`;
         
@@ -367,6 +388,13 @@ Can you beat my score?`;
                           </div>
                         )}
                       </div>
+                      
+                      <button
+                        onClick={shareResult}
+                        className="w-full py-4 bg-blue-600 text-white text-sm font-medium rounded-full hover:bg-blue-700 transition-all duration-200 tracking-wide relative mt-4"
+                      >
+                        {showCopied ? '✓ Copied to Clipboard!' : 'Share Result'}
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -498,16 +526,10 @@ Can you beat my score?`;
                     {showCopied ? '✓ Copied to Clipboard!' : 'Share Result'}
                   </button>
                   <button
-                    onClick={startGame}
-                    className="w-full py-4 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-200 tracking-wide"
-                  >
-                    Play Again
-                  </button>
-                  <button
                     onClick={() => setGameState('start')}
-                    className="w-full py-4 bg-white text-gray-900 text-sm font-medium rounded-full hover:bg-gray-100 transition-all duration-200 tracking-wide"
+                    className="w-full py-4 bg-gray-900 text-gray-900 text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-200 tracking-wide border border-gray-900"
                   >
-                    Main Menu
+                    Home
                   </button>
                 </div>
               </div>

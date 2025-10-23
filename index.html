@@ -438,7 +438,7 @@ Can you beat my score?`;
             )}
 
             {gameState === 'playing' && (
-              <div className="space-y-16">
+              <div className="space-y-4 sm:space-y-8 md:space-y-12">
                 {/* Countdown Progress Bar */}
                 <div className="w-full">
                   <div className="w-full h-0.5 bg-gray-200 rounded-full overflow-hidden">
@@ -453,14 +453,14 @@ Can you beat my score?`;
                 </div>
 
                 <div className="text-center space-y-1">
-                  <div className="text-5xl font-light tabular-nums text-gray-900">
+                  <div className="text-4xl sm:text-5xl font-light tabular-nums text-gray-900">
                     {timer.toFixed(1)}
                   </div>
                   <div className="text-xs font-light text-gray-400 uppercase tracking-widest">Seconds</div>
                 </div>
 
-                <div className="text-center py-4">
-                  <div className="text-9xl inline-block transform transition-transform duration-300" 
+                <div className="text-center py-2 sm:py-4">
+                  <div className="text-6xl sm:text-7xl md:text-9xl inline-block transform transition-transform duration-300" 
                        style={{ 
                          transform: catAnimation === 'swipe' ? 'rotate(15deg) scale(1.1)' : 'scale(1)'
                        }}>
@@ -471,7 +471,7 @@ Can you beat my score?`;
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => performAction('pet')}
-                    className="group py-8 px-6 bg-white rounded-2xl hover:bg-gray-900 transition-all duration-200 flex flex-col items-center gap-3"
+                    className="group py-5 sm:py-6 md:py-8 px-4 sm:px-6 bg-white rounded-2xl hover:bg-gray-900 active:bg-gray-800 active:scale-95 transition-all duration-200 flex flex-col items-center gap-2 sm:gap-3"
                   >
                     <Hand size={24} className="text-gray-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     <span className="text-sm font-light text-gray-600 group-hover:text-white transition-colors">Pet</span>
@@ -479,7 +479,7 @@ Can you beat my score?`;
 
                   <button
                     onClick={() => performAction('leave')}
-                    className="group py-8 px-6 bg-white rounded-2xl hover:bg-gray-900 transition-all duration-200 flex flex-col items-center gap-3"
+                    className="group py-5 sm:py-6 md:py-8 px-4 sm:px-6 bg-white rounded-2xl hover:bg-gray-900 active:bg-gray-800 active:scale-95 transition-all duration-200 flex flex-col items-center gap-2 sm:gap-3"
                   >
                     <Heart size={24} className="text-gray-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     <span className="text-sm font-light text-gray-600 group-hover:text-white transition-colors">Leave Alone</span>
@@ -487,7 +487,7 @@ Can you beat my score?`;
 
                   <button
                     onClick={() => performAction('treat')}
-                    className="group py-8 px-6 bg-white rounded-2xl hover:bg-gray-900 transition-all duration-200 flex flex-col items-center gap-3"
+                    className="group py-5 sm:py-6 md:py-8 px-4 sm:px-6 bg-white rounded-2xl hover:bg-gray-900 active:bg-gray-800 active:scale-95 transition-all duration-200 flex flex-col items-center gap-2 sm:gap-3"
                   >
                     <Cookie size={24} className="text-gray-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     <span className="text-sm font-light text-gray-600 group-hover:text-white transition-colors">Feed Treat</span>
@@ -495,7 +495,7 @@ Can you beat my score?`;
 
                   <button
                     onClick={() => endGame()}
-                    className="group py-8 px-6 bg-white rounded-2xl hover:bg-gray-900 transition-all duration-200 flex flex-col items-center gap-3"
+                    className="group py-5 sm:py-6 md:py-8 px-4 sm:px-6 bg-white rounded-2xl hover:bg-gray-900 active:bg-gray-800 active:scale-95 transition-all duration-200 flex flex-col items-center gap-2 sm:gap-3"
                   >
                     <XCircle size={24} className="text-gray-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     <span className="text-sm font-light text-gray-600 group-hover:text-white transition-colors">Walk Away</span>
@@ -527,7 +527,7 @@ Can you beat my score?`;
                   </button>
                   <button
                     onClick={() => setGameState('start')}
-                    className="w-full py-4 bg-gray-900 text-gray-900 text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-200 tracking-wide border border-gray-900"
+                    className="w-full py-4 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-200 tracking-wide border border-gray-900"
                   >
                     Home
                   </button>
@@ -537,7 +537,13 @@ Can you beat my score?`;
           </div>
           
           <footer className="w-full max-w-xl mt-8 text-center">
-            <p className="text-xs text-gray-400">© 2025 PlayStella. All rights reserved.</p>
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+              <p className="text-xs text-gray-400">© 2025 PlayStella. All rights reserved.</p>
+              <div className="flex gap-4 text-xs">
+                <a href="privacy.html" className="text-gray-500 hover:text-gray-700 transition-colors">Privacy Policy</a>
+                <a href="terms.html" className="text-gray-500 hover:text-gray-700 transition-colors">Terms of Service</a>
+              </div>
+            </div>
           </footer>
         </div>
       );

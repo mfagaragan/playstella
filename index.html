@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlayStella - Daily Cat Game</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    }
+    
+    /* Prevent hover states on touch devices (iPhone/iPad fix) */
+    @media (hover: none) {
+      .action-btn:hover {
+        background-color: white !important;
+      }
+      .action-btn:hover svg {
+        color: rgb(156 163 175) !important;
+      }
+      .action-btn:hover span {
+        color: rgb(75 85 99) !important;
+      }
+    }
+    
+    /* Fluid scaling for responsive gameplay */
+    .timer-display {
+      font-size: clamp(2.25rem, 7vh, 4.5rem);
+    }
+    
+    .cat-container {
+      width: clamp(128px, 22vh, 240px);
+      height: clamp(128px, 22vh, 240px);
+    }
+    
+    .cat-emoji {
+      font-size: clamp(5rem, 15vh, 10rem);
+      line-height: 1;
+    }
+    
+    .game-spacing {
+      gap: clamp(0.5rem, 1.5vh, 1.5rem);
+    }
+    
+    .action-button {
+      padding-top: clamp(1.25rem, 2.5vh, 2.5rem);
+      padding-bottom: clamp(1.25rem, 2.5vh, 2.5rem);
+    }
+    
+    /* Circular progress ring */
+    .progress-ring {
+      transform: rotate(-90deg);
+      transition: stroke-dashoffset 0.1s linear, stroke 0.3s ease;
+    }
+    
+    /* Height-based breakpoints for fine-tuning */
+    @media (min-height: 700px) {
+      .game-spacing {
+        gap: clamp(0.75rem, 2vh, 2rem);
+      }
+    }
+    
+    @media (min-height: 900px) {
+      .game-spacing {
+        gap: clamp(1rem, 2.5vh, 2.5rem);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Lucide React icons as inline SVG components
+    const Heart = ({ size = 24, className = "", strokeWidth = 2 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+      </svg>
+    );
+
+    const Hand = ({ size = 24, className = "", strokeWidth = 2 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+        <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+        <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+        <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+      </svg>
+    );
+
+    const Cookie = ({ size = 24, className = "", strokeWidth = 2 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/>
+        <path d="M8.5 8.5v.01"/>
+        <path d="M16 15.5v.01"/>
+        <path d="M12 12v.01"/>
+        <path d="M11 17v.01"/>
+        <path d="M7 14v.01"/>
+      </svg>
+    );
+
+    const XCircle = ({ size = 24, className = "", strokeWidth = 2 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <circle cx="12" cy="12" r="10"/>
+        <path d="m15 9-6 6"/>
+        <path d="m9 9 6 6"/>
+      </svg>
+    );
+
+    const StellaCatGame = () => {
+      const [gameState, setGameState] = useState('start');
+      const [timer, setTimer] = useState(0);
+      const [catMood, setCatMood] = useState(100);
+      const [patience, setPatience] = useState(100);
+      const [catAnimation, setCatAnimation] = useState('idle');
+      const [lastActionTime, setLastActionTime] = useState(Date.now());
+      const [dailySeed, setDailySeed] = useState(0);
+      const [actionCounts, setActionCounts] = useState({ pet: 0, leave: 0, treat: 0, end: 0 });
+      const [timeLeft, setTimeLeft] = useState(3);
+      const [ringColor, setRingColor] = useState('#10b981');
+      const [showCopied, setShowCopied] = useState(false);
+      const [actionHistory, setActionHistory] = useState([]);
+      const [hasPlayedToday, setHasPlayedToday] = useState(false);
+      const [bestTime, setBestTime] = useState(null);
+      const [streak, setStreak] = useState(0);
+      const [nextPlayTime, setNextPlayTime] = useState(null);
+      const [lastGameTime, setLastGameTime] = useState(null);
+      const [lastGameActions, setLastGameActions] = useState(0);
+
+      // Generate daily seed based on date
+      useEffect(() => {
+        const today = new Date().toDateString();
+        const seed = today.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        setDailySeed(seed);
+        
+        // Check if user has already played today
+        const lastPlayDate = localStorage.getItem('stellaLastPlayDate');
+        const hasPlayed = lastPlayDate === today;
+        setHasPlayedToday(hasPlayed);
+        
+        // Load best time
+        const savedBestTime = localStorage.getItem('stellaBestTime');
+        if (savedBestTime) {
+          setBestTime(parseFloat(savedBestTime));
+        }
+        
+        // Load last game results for sharing
+        const savedLastGameTime = localStorage.getItem('stellaLastGameTime');
+        const savedLastGameActions = localStorage.getItem('stellaLastGameActions');
+        if (savedLastGameTime) {
+          setLastGameTime(parseFloat(savedLastGameTime));
+        }
+        if (savedLastGameActions) {
+          setLastGameActions(parseInt(savedLastGameActions));
+        }
+        
+        // Load and calculate streak
+        const lastPlayDateStr = localStorage.getItem('stellaLastPlayDate');
+        const currentStreakStr = localStorage.getItem('stellaStreak');
+        
+        if (lastPlayDateStr && currentStreakStr) {
+          const lastPlay = new Date(lastPlayDateStr);
+          const todayDate = new Date(today);
+          const yesterday = new Date(todayDate);
+          yesterday.setDate(yesterday.getDate() - 1);
+          
+          // Check if last play was yesterday (continue streak) or today (maintain streak)
+          if (lastPlayDateStr === yesterday.toDateString()) {
+            setStreak(parseInt(currentStreakStr));
+          } else if (lastPlayDateStr === today) {
+            setStreak(parseInt(currentStreakStr));
+          } else {
+            // Streak broken
+            setStreak(0);
+            localStorage.setItem('stellaStreak', '0');
+          }
+        }
+        
+        // Calculate next play time (midnight tonight)
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        setNextPlayTime(tomorrow);
+      }, []);
+
+      // Seeded random number generator for specific action + count
+      const getSeededRandom = (actionName, count) => {
+        const actionSeed = actionName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const combinedSeed = dailySeed + actionSeed + count;
+        const x = Math.sin(combinedSeed) * 10000;
+        return x - Math.floor(x);
+      };
+
+      // Timer effect
+      useEffect(() => {
+        let interval;
+        if (gameState === 'playing') {
+          interval = setInterval(() => {
+            setTimer(prev => prev + 0.1);
+          }, 100);
+        }
+        return () => clearInterval(interval);
+      }, [gameState]);
+
+      // Check if cat swipes
+      useEffect(() => {
+        if (gameState === 'playing' && patience <= 0) {
+          endGame();
+        }
+      }, [patience, gameState]);
+
+      // Inactivity timer
+      useEffect(() => {
+        let countdownInterval;
+        
+        if (gameState === 'playing') {
+          // Update countdown every 50ms for smoother animation
+          countdownInterval = setInterval(() => {
+            const elapsed = (Date.now() - lastActionTime) / 1000;
+            const remaining = Math.max(0, 3 - elapsed);
+            setTimeLeft(remaining);
+            
+            // End game when time runs out
+            if (remaining <= 0) {
+              endGame();
+            }
+          }, 50);
+        }
+        
+        return () => {
+          clearInterval(countdownInterval);
+        };
+      }, [gameState, lastActionTime]);
+
+      // Update ring color based on timeLeft
+      useEffect(() => {
+        if (gameState === 'playing') {
+          if (timeLeft > 2) {
+            setRingColor('#10b981');
+          } else if (timeLeft > 1) {
+            setRingColor('#f59e0b');
+          } else {
+            setRingColor('#ef4444');
+          }
+        }
+      }, [timeLeft, gameState]);
+
+      const startGame = () => {
+        // Prevent starting if already played today
+        if (hasPlayedToday) {
+          return;
+        }
+        
+        setGameState('playing');
+        setTimer(0);
+        setActionCounts({ pet: 0, leave: 0, treat: 0, end: 0 });
+        setActionHistory([]);
+        
+        // Seeded starting stats
+        const moodRng = Math.sin(dailySeed * 1.1) * 10000;
+        const patienceRng = Math.sin(dailySeed * 1.2) * 10000;
+        setCatMood(80 + Math.floor((moodRng - Math.floor(moodRng)) * 20));
+        setPatience(70 + Math.floor((patienceRng - Math.floor(patienceRng)) * 30));
+        
+        setCatAnimation('idle');
+        setLastActionTime(Date.now());
+      };
+
+      const endGame = () => {
+        setGameState('gameOver');
+        setCatAnimation('swipe');
+        
+        const today = new Date().toDateString();
+        
+        // CRITICAL: Read last play date BEFORE updating it
+        const lastPlayDateStr = localStorage.getItem('stellaLastPlayDate');
+        const currentStreakStr = localStorage.getItem('stellaStreak') || '0';
+        
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toDateString();
+        
+        // Calculate new streak based on OLD lastPlayDate
+        let newStreak = 1;
+        if (lastPlayDateStr === yesterdayStr) {
+          // Played yesterday, increment streak
+          newStreak = parseInt(currentStreakStr) + 1;
+        } else if (lastPlayDateStr === today) {
+          // Already played today (shouldn't happen)
+          newStreak = parseInt(currentStreakStr);
+        }
+        // else: streak broken or first time, reset to 1
+        
+        // Save new streak
+        localStorage.setItem('stellaStreak', newStreak.toString());
+        setStreak(newStreak);
+        
+        // NOW save that user played today (after streak calculation)
+        localStorage.setItem('stellaLastPlayDate', today);
+        setHasPlayedToday(true);
+        
+        // Save last game results for sharing
+        const currentTime = parseFloat(timer.toFixed(1));
+        localStorage.setItem('stellaLastGameTime', currentTime.toString());
+        localStorage.setItem('stellaLastGameActions', actionHistory.length.toString());
+        setLastGameTime(currentTime);
+        setLastGameActions(actionHistory.length);
+        
+        // Update best time if this is better
+        const savedBestTime = localStorage.getItem('stellaBestTime');
+        if (!savedBestTime || currentTime > parseFloat(savedBestTime)) {
+          localStorage.setItem('stellaBestTime', currentTime.toString());
+          setBestTime(currentTime);
+        }
+      };
+
+      const performAction = (actionName, event) => {
+        if (gameState !== 'playing') return;
+        
+        // Remove focus from button immediately (prevents stuck hover on mobile)
+        if (event?.currentTarget) {
+          event.currentTarget.blur();
+        }
+        
+        setLastActionTime(Date.now());
+        
+        const currentCount = actionCounts[actionName];
+        setActionCounts(prev => ({ ...prev, [actionName]: prev[actionName] + 1 }));
+        
+        const emojiRandom = getSeededRandom(actionName + '_emoji', currentCount);
+        const outcomeRandom = getSeededRandom(actionName + '_outcome', currentCount);
+        
+        const randomExpressions = ['😺', '😼', '😾', '🙀'];
+        const randomIndex = Math.floor(emojiRandom * randomExpressions.length);
+        const randomExpression = randomExpressions[randomIndex];
+        
+        setCatAnimation(randomExpression);
+        
+        // Determine outcome tier for history tracking
+        let outcomeTier;
+        if (outcomeRandom < 0.10) {
+          setPatience(prev => Math.max(0, prev - 40));
+          setCatMood(prev => Math.max(0, prev - 25));
+          outcomeTier = 'terrible';
+        } else if (outcomeRandom < 0.25) {
+          setPatience(prev => Math.max(0, prev - 25));
+          setCatMood(prev => Math.max(0, prev - 15));
+          outcomeTier = 'bad';
+        } else if (outcomeRandom < 0.45) {
+          setPatience(prev => Math.max(0, prev - 12));
+          setCatMood(prev => Math.max(0, prev - 8));
+          outcomeTier = 'okay';
+        } else if (outcomeRandom < 0.65) {
+          setPatience(prev => Math.max(0, prev - 5));
+          setCatMood(prev => prev);
+          outcomeTier = 'neutral';
+        } else if (outcomeRandom < 0.82) {
+          setPatience(prev => Math.min(100, prev + 10));
+          setCatMood(prev => Math.min(100, prev + 8));
+          outcomeTier = 'good';
+        } else if (outcomeRandom < 0.95) {
+          setPatience(prev => Math.min(100, prev + 20));
+          setCatMood(prev => Math.min(100, prev + 15));
+          outcomeTier = 'great';
+        } else {
+          setPatience(prev => Math.min(100, prev + 35));
+          setCatMood(prev => Math.min(100, prev + 25));
+          outcomeTier = 'excellent';
+        }
+        
+        // Add to history
+        setActionHistory(prev => [...prev, { action: actionName, outcome: outcomeTier }]);
+        
+        setTimeout(() => setCatAnimation('idle'), 500);
+      };
+
+      const getCatExpression = () => {
+        if (catAnimation === 'swipe') return '😾';
+        if (['😺', '😼', '😾', '🙀'].includes(catAnimation)) return catAnimation;
+        return '😺';
+      };
+
+      // Calculate timer ring color based on remaining time
+      const getTimerColor = () => {
+        const color = timeLeft > 2 ? '#10b981' : timeLeft > 1 ? '#f59e0b' : '#ef4444';
+        // Debug logging - remove after testing
+        if (gameState === 'playing') {
+          console.log('timeLeft:', timeLeft.toFixed(2), 'color:', color);
+        }
+        return color;
+      };
+
+      const shareResult = async () => {
+        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        
+        // Use current game data if on game over screen, otherwise use last game data
+        const timeScore = gameState === 'gameOver' ? timer.toFixed(1) : (lastGameTime ? lastGameTime.toFixed(1) : '0.0');
+        const actionsCount = gameState === 'gameOver' ? actionHistory.length : lastGameActions;
+        
+        // Build share text with streak included
+        const streakText = streak > 0 ? ` | ${streak} day streak 🔥` : '';
+        const shareText = `PlayStella 😺
+${today}
+
+${timeScore}s ⏱️ | ${actionsCount} actions${streakText}
+
+Can you beat my score?
+playstella.com`;
+        
+        // Try Web Share API first (mobile)
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: 'Stella the Cat',
+              text: shareText
+            });
+            // Don't show "copied" message for successful share
+            return;
+          } catch (err) {
+            // User cancelled or share failed, fall through to clipboard
+            if (err.name !== 'AbortError') {
+              console.log('Share failed:', err);
+            }
+          }
+        }
+        
+        // Fallback to clipboard (desktop or if share fails)
+        navigator.clipboard.writeText(shareText).then(() => {
+          setShowCopied(true);
+          setTimeout(() => setShowCopied(false), 2000);
+        }).catch(() => {
+          // If clipboard also fails, just show the copied state anyway
+          setShowCopied(true);
+          setTimeout(() => setShowCopied(false), 2000);
+        });
+      };
+
+      return (
+        <div className="w-full min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 sm:p-8">
+          <div className="max-w-xl w-full flex-grow flex items-center justify-center">
+            
+            {gameState === 'start' && (
+              <div className="text-center space-y-16">
+                <div className="space-y-4">
+                  <h1 className="text-6xl font-light tracking-tight text-gray-900">PlayStella</h1>
+                  <p className="text-lg font-light text-gray-500 max-w-md mx-auto leading-relaxed">
+                    Daily Cat Game
+                  </p>
+                </div>
+
+                <div className="text-9xl">😺</div>
+
+                {hasPlayedToday ? (
+                  <div className="space-y-8 max-w-xs mx-auto">
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-light text-gray-900">Come back tomorrow!</h2>
+                      
+                      <div className="space-y-4 pt-4">
+                        {bestTime && (
+                          <div className="bg-white rounded-2xl p-6">
+                            <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-2">Best Time</p>
+                            <p className="text-3xl font-light text-gray-900">{bestTime}s</p>
+                          </div>
+                        )}
+                        
+                        {streak > 0 && (
+                          <div className="bg-white rounded-2xl p-6">
+                            <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-2">Streak</p>
+                            <p className="text-3xl font-light text-gray-900">{streak} {streak === 1 ? 'day' : 'days'} 🔥</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <button
+                        onClick={shareResult}
+                        className="w-full py-4 bg-blue-600 text-white text-sm font-medium rounded-full hover:bg-blue-700 transition-all duration-200 tracking-wide relative mt-4"
+                      >
+                        {showCopied ? '✓ Copied to Clipboard!' : 'Share Result'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-8 max-w-xs mx-auto">
+                    <div className="space-y-4 text-left">
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">How to Play</p>
+                      <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
+                        <p>Choose actions to interact with Stella</p>
+                        <p>You have 3 seconds between each action</p>
+                        <p>Everyone gets the same Stella each day</p>
+                      </div>
+                    </div>
+                    
+                    {(bestTime || streak > 0) && (
+                      <div className="space-y-3 pt-2">
+                        {bestTime && (
+                          <div className="bg-white rounded-2xl p-4 flex items-center justify-between">
+                            <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">Best Time</p>
+                            <p className="text-xl font-light text-gray-900">{bestTime}s</p>
+                          </div>
+                        )}
+                        
+                        {streak > 0 && (
+                          <div className="bg-white rounded-2xl p-4 flex items-center justify-between">
+                            <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">Streak</p>
+                            <p className="text-xl font-light text-gray-900">{streak} {streak === 1 ? 'day' : 'days'} 🔥</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={startGame}
+                      className="w-full py-4 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-200 tracking-wide"
+                    >
+                      Start
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {gameState === 'playing' && (
+              <div className="game-spacing flex flex-col items-center">
+                {/* Timer Display */}
+                <div className="text-center space-y-1">
+                  <div className="timer-display font-light tabular-nums text-gray-900">
+                    {timer.toFixed(1)}
+                  </div>
+                  <div className="text-xs font-light text-gray-400 uppercase tracking-widest">Seconds</div>
+                </div>
+
+                {/* Cat with Circular Progress Ring */}
+                <div className="relative cat-container flex items-center justify-center">
+                  {/* SVG Circular Progress Ring */}
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="#e5e7eb"
+                      strokeWidth="2"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke={ringColor}
+                      strokeWidth="2"
+                      strokeDasharray="283"
+                      strokeDashoffset={283 - (timeLeft / 3) * 283}
+                      strokeLinecap="round"
+                      style={{
+                        transform: 'rotate(-90deg)',
+                        transformOrigin: '50% 50%',
+                        transition: 'stroke-dashoffset 0.1s linear, stroke 0.3s ease'
+                      }}
+                    />
+                  </svg>
+                  
+                  {/* Cat Emoji */}
+                  <div className="cat-emoji inline-block transform transition-transform duration-300 relative z-10" 
+                       style={{ 
+                         transform: catAnimation === 'swipe' ? 'rotate(15deg) scale(1.1)' : 'scale(1)'
+                       }}>
+                    {getCatExpression()}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+                  <button
+                    onClick={(e) => performAction('pet', e)}
+                    className="action-btn action-button group px-4 sm:px-6 bg-white rounded-2xl hover:bg-gray-900 active:bg-gray-800 active:scale-95 transition-all duration-200 flex flex-col items-center gap-2 sm:gap-3"
+                    aria-label="Pet Stella"
+                  >
+                    <Hand size={24} className="text-gray-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                    <span className="text-sm font-light text-gray-600 group-hover:text-white transition-colors">Pet</span>
+                  </button>
+
+                  <button
+                    onClick={(e) => performAction('leave', e)}
+                    className="action-btn action-button group px-4 sm:px-6 bg-white rounded-2xl hover:bg-gray-900 active:bg-gray-800 active:scale-95 transition-all duration-200 flex flex-col items-center gap-2 sm:gap-3"
+                    aria-label="Leave Stella alone"
+                  >
+                    <Heart size={24} className="text-gray-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                    <span className="text-sm font-light text-gray-600 group-hover:text-white transition-colors">Leave Alone</span>
+                  </button>
+
+                  <button
+                    onClick={(e) => performAction('treat', e)}
+                    className="action-btn action-button group px-4 sm:px-6 bg-white rounded-2xl hover:bg-gray-900 active:bg-gray-800 active:scale-95 transition-all duration-200 flex flex-col items-center gap-2 sm:gap-3"
+                    aria-label="Give Stella a treat"
+                  >
+                    <Cookie size={24} className="text-gray-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                    <span className="text-sm font-light text-gray-600 group-hover:text-white transition-colors">Feed Treat</span>
+                  </button>
+
+                  <button
+                    onClick={() => endGame()}
+                    className="action-btn action-button group px-4 sm:px-6 bg-white rounded-2xl hover:bg-gray-900 active:bg-gray-800 active:scale-95 transition-all duration-200 flex flex-col items-center gap-2 sm:gap-3"
+                    aria-label="Walk away from Stella"
+                  >
+                    <XCircle size={24} className="text-gray-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                    <span className="text-sm font-light text-gray-600 group-hover:text-white transition-colors">Walk Away</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {gameState === 'gameOver' && (
+              <div className="text-center space-y-16">
+                <div className="space-y-8">
+                  <h2 className="text-4xl font-light text-gray-900">Stella Swiped</h2>
+                  <div className="text-9xl">{getCatExpression()}</div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-6xl font-light tabular-nums text-gray-900">
+                    {timer.toFixed(1)}
+                  </div>
+                  <div className="text-xs font-light text-gray-400 uppercase tracking-widest">Seconds</div>
+                </div>
+                
+                <div className="flex flex-col gap-3 max-w-xs mx-auto">
+                  <button
+                    onClick={shareResult}
+                    className="w-full py-4 bg-blue-600 text-white text-sm font-medium rounded-full hover:bg-blue-700 transition-all duration-200 tracking-wide relative"
+                  >
+                    {showCopied ? '✓ Copied to Clipboard!' : 'Share Result'}
+                  </button>
+                  <button
+                    onClick={() => setGameState('start')}
+                    className="w-full py-4 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-200 tracking-wide border border-gray-900"
+                  >
+                    Home
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {gameState !== 'playing' && (
+            <footer className="w-full max-w-xl mt-8 text-center">
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                <p className="text-xs text-gray-400">© 2025 PlayStella. All rights reserved.</p>
+                <div className="flex gap-4 text-xs">
+                  <a href="privacy.html" className="text-gray-500 hover:text-gray-700 transition-colors">Privacy Policy</a>
+                  <a href="terms.html" className="text-gray-500 hover:text-gray-700 transition-colors">Terms of Service</a>
+                </div>
+              </div>
+            </footer>
+          )}
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<StellaCatGame />);
+  </script>
+</body>
+</html>
